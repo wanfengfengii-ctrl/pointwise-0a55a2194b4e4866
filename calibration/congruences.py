@@ -1,8 +1,5 @@
-from math import gcd
-
-from calibration.integer_relation import (
-    IntegerRelation, evaluate_linear_form, scale_vector, translate_point,
-)
+from calibration.integer_relation import apply_parameters, evaluate_linear_form
+from calibration.lattices import solve_congruence
 
 
 def apply_congruence(relation, row, rhs, modulus):
@@ -11,20 +8,8 @@ def apply_congruence(relation, row, rhs, modulus):
     if modulus == 1:
         return relation
     base, coefficients = evaluate_linear_form(relation, row)
-    delta = rhs - base
-    if delta % gcd(modulus, *coefficients):
+    solution = solve_congruence(coefficients, rhs - base, modulus)
+    if solution is None:
         return None
-
-    point = relation.point
-    directions = []
-    for index, (coefficient, direction) in enumerate(zip(coefficients, relation.directions, strict=True)):
-        others = coefficients[:index] + coefficients[index + 1:]
-        projected_modulus = gcd(modulus, *others)
-        common = gcd(coefficient, projected_modulus)
-        period = projected_modulus // common
-        if period > 1:
-            inverse = pow(coefficient // common, -1, period)
-            parameter = (delta // common * inverse) % period
-            point = translate_point(point, direction, parameter)
-        directions.append(scale_vector(direction, period))
-    return IntegerRelation(point, tuple(directions))
+    particular, kernel = solution
+    return apply_parameters(relation, particular, kernel)
